@@ -21,7 +21,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity{
+public class MainActivity extends AppCompatActivity {
     private ListView stuListView;
     private Button btnAddStu;
     private Button btnCheckStu;
@@ -31,6 +31,7 @@ public class MainActivity extends AppCompatActivity{
     private static ArrayList<Student> studentArrayList = new ArrayList<>();
     private static ArrayList<Student> searchResultList = new ArrayList<>();
     boolean isResultList = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,15 +46,6 @@ public class MainActivity extends AppCompatActivity{
         initStuListView();
 
 
-
-    }
-//创建数据表
-    private void createTable() {
-        if (db == null){
-            createOrOpenDatabase();
-        }
-        String sql = "create table if not exists student (stuno varchar(20),name varchar(20),age int)";
-        db.execSQL(sql);
     }
 
     //初始化listView
@@ -65,18 +57,18 @@ public class MainActivity extends AppCompatActivity{
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Student s = studentArrayList.get(position);
 
-                if(isResultList){
+                if (isResultList) {
                     s = searchResultList.get(position);
                 }
 
-                Toast.makeText(MainActivity.this,"姓名"+s.getName()
-                        +"年龄"+s.getAge(),Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "姓名" + s.getName()
+                        + "年龄" + s.getAge(), Toast.LENGTH_SHORT).show();
 
-                Intent intent = new Intent(MainActivity.this,Activity_edit.class);
-                intent.putExtra("NAME",s.getName());
-                intent.putExtra("AGE",s.getAge());
-                intent.putExtra("NO",s.getNo());
-                startActivityForResult(intent,1002);
+                Intent intent = new Intent(MainActivity.this, Activity_edit.class);
+                intent.putExtra("NAME", s.getName());
+                intent.putExtra("AGE", s.getAge());
+                intent.putExtra("NO", s.getNo());
+                startActivityForResult(intent, 1002);
 
             }
         });
@@ -84,7 +76,7 @@ public class MainActivity extends AppCompatActivity{
 
     //初始化适配器
     private void initAdapter() {
-        stuAdapter = new listAdapter(MainActivity.this,studentArrayList);
+        stuAdapter = new listAdapter(MainActivity.this, studentArrayList);
     }
 
     //初始搜索模块
@@ -122,21 +114,22 @@ public class MainActivity extends AppCompatActivity{
             }
         });
     }
-//搜索引擎
+
+    //搜索引擎
     private void search(ArrayList<Student> studentArrayList, String keyword) {
         searchResultList.clear();
-        for(int i=0; i<studentArrayList.size(); i++){
+        for (int i = 0; i < studentArrayList.size(); i++) {
             Student s = studentArrayList.get(i);
             // 如果学生姓名包含了关键字 这个学生就加入到结果列表
-            if(s.getName().contains(keyword)){
+            if (s.getName().contains(keyword)) {
                 searchResultList.add(s);
             }
             // 如果学生年龄包含关键字 这个学生就加入到结果列表
-            else if(String.valueOf(s.getAge()).contains(keyword)){
+            else if (String.valueOf(s.getAge()).contains(keyword)) {
                 searchResultList.add(s);
             }
             // 如果学生学号等于关键字 这个学生就加入到结果列表
-            else if (s.getNo().equals(keyword)){
+            else if (s.getNo().equals(keyword)) {
                 searchResultList.add(s);
             }
         }
@@ -150,88 +143,99 @@ public class MainActivity extends AppCompatActivity{
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this,
                         Activity_add.class);
-                startActivityForResult(intent,1001);
+                startActivityForResult(intent, 1001);
             }
         });
     }
-//初始化学生列表
+
+    //初始化学生列表
     private void initStudentArrayList() {
-        Cursor cursor = db.query("student",null,null,null
-        ,null,null,null);
-        if (cursor == null){
-            Log.e("MainActivity","cursor == null");
+        Cursor cursor = db.query("student", null, null, null
+                , null, null, null);
+        if (cursor == null) {
+            Log.e("MainActivity", "cursor == null");
             return;
         }
-        for (cursor.moveToFirst();!cursor.isAfterLast();cursor.moveToNext()){
+        studentArrayList.clear();
+        for (cursor.moveToFirst(); !cursor.isAfterLast(); cursor.moveToNext()) {
             String no = cursor.getString(0);
             String name = cursor.getString(1);
             int age = cursor.getInt(2);
-            studentArrayList.add(new Student(no,name,age));
+            studentArrayList.add(new Student(no, name, age));
         }
-        Log.e("MainActivity","size = " + studentArrayList.get(0).getNo());
-
+//        Log.e("MainActivity", "size = " + studentArrayList.get(0).getNo());
+        cursor.close();
     }
-
 
     //创建或打开数据库
     private void createOrOpenDatabase() {
-        String path = getFilesDir().getAbsolutePath()+File.separator+"stu.db";
+        String path = getFilesDir().getAbsolutePath() + File.separator + "stu.db";
 
-        db = SQLiteDatabase.openOrCreateDatabase(path,null);
+        db = SQLiteDatabase.openOrCreateDatabase(path, null);
+    }
+
+    //创建数据表
+    private void createTable() {
+        if (db == null) {
+            createOrOpenDatabase();
+        }
+        String sql = "create table if not exists student (stuno varchar(20),name varchar(20),age int)";
+        db.execSQL(sql);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        if (data == null){
+        if (data == null) {
             return;
         }
-        if (resultCode == 2002){
+        if (resultCode == 2002) {
             String no = data.getStringExtra("NO");
             String name = data.getStringExtra("NAME");
-            int age = data.getIntExtra("AGE",0);
+            int age = data.getIntExtra("AGE", 0);
             //往数据库添加数据
-            String sql = "insert into student values('"+no+"','"+name+"',"+age+")";
+            String sql = "insert into student values('" + no + "','" + name + "'," + age + ")";
             db.execSQL(sql);
 
-            Student stu = new Student(no,name,age);
+            Student stu = new Student(no, name, age);
             studentArrayList.add(stu);
             stuAdapter.notifyDataSetChanged();
-        }else if (resultCode == 3003){
+        } else if (resultCode == 3003) {
 
             String name = data.getStringExtra("NAME");
-            int age = data.getIntExtra("AGE",0);
+            int age = data.getIntExtra("AGE", 0);
             String no = data.getStringExtra("NO");
-            Log.e("MainActivity","resultCode = " + no);
-            String sql = "update student set name = '"+name+"',age = '"+age+"'where stuno = '"+no+"'";
+            Log.e("MainActivity", "resultCode = " + no);
+            String sql = "update student set name = '" + name + "',age = '" + age + "'where stuno = '" + no + "'";
             db.execSQL(sql);
 
-            for(int i=0; i<studentArrayList.size(); i++){
+            for (int i = 0; i < studentArrayList.size(); i++) {
                 Student s = studentArrayList.get(i);
-                Log.e("MainActivity","resultCode = " + s.getNo());
-                if(s.getNo().equals(no)) {
+                Log.e("MainActivity", "resultCode = " + s.getNo());
+                if (s.getNo().equals(no)) {
                     s.setName(name);
                     s.setAge(age);
                 }
             }
             stuAdapter.notifyDataSetChanged();
-//            String keyword = edtCheck.getText().toString().trim();
-            // 使用学生列表和关键字 得到搜索结果列表
-//            search(studentArrayList, keyword);
-//            stuAdapter.changeData(searchResultList);
-//            isResultList = true;
+            String keyword = editCheck.getText().toString().trim();
+             //使用学生列表和关键字 得到搜索结果列表
+            search(studentArrayList, keyword);
+            stuAdapter.changeData(searchResultList);
+            isResultList = true;
         }
     }
 
+    //删除对应数据
     public static void delete(String stu) {
 
-        for (int i = 0; i < studentArrayList.size(); i++){
-            if (studentArrayList.get(i).getNo().equals(stu)){
+        for (int i = 0; i < studentArrayList.size(); i++) {
+            if (studentArrayList.get(i).getNo().equals(stu)) {
                 studentArrayList.remove(i);
                 stuAdapter.notifyDataSetChanged();
             }
         }
 
-        String sql = "delete from student where stuno = '"+stu+"'";
+        String sql = "delete from student where stuno = '" + stu + "'";
         db.execSQL(sql);
     }
 }
