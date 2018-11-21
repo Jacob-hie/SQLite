@@ -1,6 +1,8 @@
 package com.hie2j.sqlite;
 
-public class Student {
+import java.io.Serializable;
+
+public class Student implements Serializable{
     String no;
     String name;
     int age;

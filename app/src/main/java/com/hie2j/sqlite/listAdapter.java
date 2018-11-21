@@ -13,17 +13,12 @@ public class listAdapter extends BaseAdapter {
 
     private Context context;
     private ArrayList<Student> studentArrayList;
+    private IOnDelListener listener;
 
-    public listAdapter(Context context, ArrayList<Student> studentArrayList) {
+    public listAdapter(Context context, ArrayList<Student> studentArrayList,IOnDelListener listener) {
         this.context = context;
         this.studentArrayList = studentArrayList;
-    }
-    /**
-     * 改变数据源
-     * */
-    public void changeData(ArrayList<Student> studentArrayList){
-        this.studentArrayList = studentArrayList;
-        notifyDataSetChanged();
+        this.listener = listener;
     }
 
     @Override
@@ -52,16 +47,23 @@ public class listAdapter extends BaseAdapter {
             holder.ageView = convertView.findViewById(R.id.stu_age);
             holder.nameView = convertView.findViewById(R.id.stu_name);
             holder.noView = convertView.findViewById(R.id.stu_no);
+            holder.ivDel = convertView.findViewById(R.id.iv_del);
 
             convertView.setTag(holder);
         }
 
-        Student stu = studentArrayList.get(position);
+        final Student stu = studentArrayList.get(position);
         StuViewHolder holder = (StuViewHolder) convertView.getTag();
 
         holder.noView.setText(stu.getNo());
         holder.nameView.setText(stu.getName());
         holder.ageView.setText(String.valueOf(stu.getAge()));
+        holder.ivDel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                listener.delete(stu);
+            }
+        });
 
         return convertView;
     }

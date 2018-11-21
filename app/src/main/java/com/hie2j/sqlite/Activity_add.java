@@ -30,6 +30,10 @@ public class Activity_add extends AppCompatActivity {
                 int age = Integer.parseInt(editAge.getText().toString());
                 String no = editNo.getText().toString();
 
+                if (name.equals("") || editAge.getText().toString().equals("") || no.equals("")){
+                    finish();
+                }
+
                 Intent intent = new Intent();
                 intent.putExtra("NAME",name);
                 intent.putExtra("AGE",age);

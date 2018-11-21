@@ -1,5 +1,5 @@
 package com.hie2j.sqlite;
 
 public interface IOnDelListener {
-    void delete(int i);
+    void delete(Student student);
 }

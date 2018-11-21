@@ -21,7 +21,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements IOnDelListener{
     private ListView stuListView;
     private Button btnAddStu;
     private Button btnCheckStu;
@@ -29,22 +29,17 @@ public class MainActivity extends AppCompatActivity {
     private static listAdapter stuAdapter;
     public static SQLiteDatabase db;
     private static ArrayList<Student> studentArrayList = new ArrayList<>();
-    private static ArrayList<Student> searchResultList = new ArrayList<>();
-    boolean isResultList = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        createOrOpenDatabase();
-        createTable();
-        initStudentArrayList();
-        initAddStudnet();
         initAdapter();
+        readDataFromDB();
+        initAddStudnet();
         initSearchView();
         initStuListView();
-
 
     }
 
@@ -57,17 +52,14 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Student s = studentArrayList.get(position);
 
-                if (isResultList) {
-                    s = searchResultList.get(position);
-                }
-
                 Toast.makeText(MainActivity.this, "姓名" + s.getName()
                         + "年龄" + s.getAge(), Toast.LENGTH_SHORT).show();
 
                 Intent intent = new Intent(MainActivity.this, Activity_edit.class);
-                intent.putExtra("NAME", s.getName());
-                intent.putExtra("AGE", s.getAge());
-                intent.putExtra("NO", s.getNo());
+                intent.putExtra("STUDENT", s);
+//                intent.putExtra("NAME", s.getName());
+//                intent.putExtra("AGE", s.getAge());
+//                intent.putExtra("NO", s.getNo());
                 startActivityForResult(intent, 1002);
 
             }
@@ -76,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
 
     //初始化适配器
     private void initAdapter() {
-        stuAdapter = new listAdapter(MainActivity.this, studentArrayList);
+        stuAdapter = new listAdapter(MainActivity.this, studentArrayList,MainActivity.this);
     }
 
     //初始搜索模块
@@ -88,9 +80,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 String keyword = editCheck.getText().toString().trim();
                 // 使用学生列表和关键字 得到搜索结果列表
-                search(studentArrayList, keyword);
-                stuAdapter.changeData(searchResultList);
-                isResultList = true;
+                searchFromDB(keyword);
             }
         });
         editCheck.addTextChangedListener(new TextWatcher() {
@@ -108,31 +98,38 @@ public class MainActivity extends AppCompatActivity {
             public void afterTextChanged(Editable editable) {
                 String keyword = editCheck.getText().toString().trim();
                 // 使用学生列表和关键字 得到搜索结果列表
-                search(studentArrayList, keyword);
-                stuAdapter.changeData(searchResultList);
-                isResultList = true;
+                searchFromDB(keyword);
             }
         });
     }
 
     //搜索引擎
-    private void search(ArrayList<Student> studentArrayList, String keyword) {
-        searchResultList.clear();
-        for (int i = 0; i < studentArrayList.size(); i++) {
-            Student s = studentArrayList.get(i);
-            // 如果学生姓名包含了关键字 这个学生就加入到结果列表
-            if (s.getName().contains(keyword)) {
-                searchResultList.add(s);
-            }
-            // 如果学生年龄包含关键字 这个学生就加入到结果列表
-            else if (String.valueOf(s.getAge()).contains(keyword)) {
-                searchResultList.add(s);
-            }
-            // 如果学生学号等于关键字 这个学生就加入到结果列表
-            else if (s.getNo().equals(keyword)) {
-                searchResultList.add(s);
+    private void searchFromDB(String key) {
+        String where = "name like '%" + key + "%' OR stuno like '%" + key + "%' OR age like '%" + key + "%'";
+
+        String path = getFilesDir().getAbsolutePath() + File.separator + "stu.db";
+        SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase(path, null);
+
+        studentArrayList.clear();
+
+
+        Cursor cursor = db.query("student", null, where,
+                null, null, null, null, null);
+
+        if (cursor != null && cursor.getCount() > 0) {
+            for (cursor.moveToFirst(); !cursor.isAfterLast(); cursor.moveToNext()) {
+                String stuno = cursor.getString(0);
+                String name = cursor.getString(1);
+                int age = cursor.getInt(2);
+
+                Student student = new Student(stuno, name, age);
+                studentArrayList.add(student);
             }
         }
+
+        stuAdapter.notifyDataSetChanged();
+        cursor.close();
+        db.close();
     }
 
     //添加学生
@@ -149,7 +146,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //初始化学生列表
-    private void initStudentArrayList() {
+    private void readDataFromDB() {
+
+        String path = getFilesDir().getAbsolutePath() + File.separator + "stu.db";
+        db = SQLiteDatabase.openOrCreateDatabase(path, null);
+
+        String sql = "create table if not exists student (stuno varchar(20),name varchar(20),age int)";
+        db.execSQL(sql);
+
         Cursor cursor = db.query("student", null, null, null
                 , null, null, null);
         if (cursor == null) {
@@ -164,23 +168,9 @@ public class MainActivity extends AppCompatActivity {
             studentArrayList.add(new Student(no, name, age));
         }
 //        Log.e("MainActivity", "size = " + studentArrayList.get(0).getNo());
+        stuAdapter.notifyDataSetChanged();
         cursor.close();
-    }
-
-    //创建或打开数据库
-    private void createOrOpenDatabase() {
-        String path = getFilesDir().getAbsolutePath() + File.separator + "stu.db";
-
-        db = SQLiteDatabase.openOrCreateDatabase(path, null);
-    }
-
-    //创建数据表
-    private void createTable() {
-        if (db == null) {
-            createOrOpenDatabase();
-        }
-        String sql = "create table if not exists student (stuno varchar(20),name varchar(20),age int)";
-        db.execSQL(sql);
+        db.close();
     }
 
     @Override
@@ -193,49 +183,90 @@ public class MainActivity extends AppCompatActivity {
             String name = data.getStringExtra("NAME");
             int age = data.getIntExtra("AGE", 0);
             //往数据库添加数据
-            String sql = "insert into student values('" + no + "','" + name + "'," + age + ")";
-            db.execSQL(sql);
-
-            Student stu = new Student(no, name, age);
-            studentArrayList.add(stu);
-            stuAdapter.notifyDataSetChanged();
+            Student student = new Student(no, name, age);
+            addStudentToDB(student);
         } else if (resultCode == 3003) {
 
+//            Student student = (Student) getIntent().getSerializableExtra("STUDENT");
+            String no = data.getStringExtra("NO");
             String name = data.getStringExtra("NAME");
             int age = data.getIntExtra("AGE", 0);
-            String no = data.getStringExtra("NO");
-            Log.e("MainActivity", "resultCode = " + no);
-            String sql = "update student set name = '" + name + "',age = '" + age + "'where stuno = '" + no + "'";
-            db.execSQL(sql);
+            Student student = new Student(no, name, age);
+//            if (student == null) {
+//                Log.e("student", "error");
+//            } else {
+            Log.e("MainActivity", "name =" + student.getName());
+            updateStudentToDB(student);
+//            }
 
-            for (int i = 0; i < studentArrayList.size(); i++) {
-                Student s = studentArrayList.get(i);
-                Log.e("MainActivity", "resultCode = " + s.getNo());
-                if (s.getNo().equals(no)) {
-                    s.setName(name);
-                    s.setAge(age);
-                }
-            }
-            stuAdapter.notifyDataSetChanged();
-            String keyword = editCheck.getText().toString().trim();
-             //使用学生列表和关键字 得到搜索结果列表
-            search(studentArrayList, keyword);
-            stuAdapter.changeData(searchResultList);
-            isResultList = true;
         }
+
+    }
+
+    private void addStudentToDB(Student student) {
+        String path = getFilesDir().getAbsolutePath() + File.separator + "stu.db";
+        SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase(path, null);
+
+        ContentValues values = new ContentValues();
+        values.put("stuno", student.getNo());
+        values.put("name", student.getName());
+        values.put("age", student.getAge());
+
+        db.insert("student", null, values);
+        db.close();
+        readDataFromDB();
+    }
+
+    private void updateStudentToDB(Student student) {
+        String path = getFilesDir().getAbsolutePath() + File.separator + "stu.db";
+        SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase(path, null);
+
+        //第一种 组装更新语句
+//        String sql = "update studnet set name ='"+student.getName()+"', "+
+//                "age = '"+student.getAge()+"', where stuno = '"+student.getStuno()+"'";
+//        db.execSQL(sql);
+//        db.close();
+//        readDataFromDB();
+        //第二种 使用update接口
+        String where = "stuno = '" + student.getNo() + "'";
+        ContentValues values = new ContentValues();
+        values.put("name", student.getName());
+        values.put("age", student.getAge());
+        db.update("student", values, where, null);
+        db.close();
+        readDataFromDB();
+        //第三种 使用带参数接口
+//        String where = "stuno = ?";
+//        String[] args = {student.getNo()};
+//        ContentValues values = new ContentValues();
+//        values.put("name",student.getName());
+//        values.put("age",student.getAge());
+//        db.update("student",values,where,args);
+//        db.close();
+//        readDataFromDB();
     }
 
     //删除对应数据
-    public static void delete(String stu) {
-
-        for (int i = 0; i < studentArrayList.size(); i++) {
-            if (studentArrayList.get(i).getNo().equals(stu)) {
-                studentArrayList.remove(i);
-                stuAdapter.notifyDataSetChanged();
-            }
-        }
-
-        String sql = "delete from student where stuno = '" + stu + "'";
+    public void delete(Student student) {
+        String path = getFilesDir().getAbsolutePath() + File.separator + "stu.db";
+        SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase(path, null);
+        //第一种 组装删除语句
+        String sql = "delete from student where stuno = '" + student.getNo() +"'";
         db.execSQL(sql);
+        db.close();
+        readDataFromDB();
+
+        //第二种 使用delete接口
+//        String where = "stuno = '"+student.getStuno()+"'";
+//        db.delete("student",where,null);
+//        db.close();
+//        readDataFromDB();
+
+        //第三种 使用带参数接口
+//        String where = "stuno = ?";
+//        String[] args = {student.getStuno()};
+//        db.delete("studnet",where,args);
+//        db.close();
+//        readDataFromDB();
     }
 }
